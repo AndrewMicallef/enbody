@@ -5,7 +5,7 @@ local lg = love.graphics
 lg.setDefaultFilter("nearest", "nearest")
 
 --dimension of the particles textures
-local dim = 64
+local dim = 40
 --time passes faster or slower
 local timescale = 1.0
 --break update step into multiple updates
@@ -13,7 +13,7 @@ local steps_per_render = 1
 --percentage of particles that exert force per-update
 local sampling_percent = 1.0
 --visual zoom
-local zoom = 1
+local zoom = 10
 --cam position
 local cx, cy = 0, 0
 
@@ -34,110 +34,23 @@ local sim_template = {
 	--the term included in the shader that
 	--determines the distribution of particle masses
 	mass_distribution = "u * u",
+	--constant accelaration term
+	constant_term = nil
 }
 local sim_configs = {
-	gravity = {
-		gen = "dense",
-		force_scale = 1.0,
-		force_distance = 10.0,
-		force_term = "vec3 f = dir * (m1 * m2) / max(1.0, r * r);",
-		mass_scale = 1.0,
-		mass_distribution = "u * u",
-	},
-	strings = {
-		gen = "sparse",
-		force_scale = 0.00005,
-		force_distance = 20.0,
-		force_term = "vec3 f = dir * m2 * max(1.0, r * r);",
-		mass_scale = 5.0,
-		mass_distribution = "u",
-	},
-	cloud = {
-		gen = "dense",
-		force_scale = 0.01,
-		force_distance = 10.0,
-		force_term = "vec3 f = dir * (r * m1 * 0.3 - 5.0);",
-		mass_scale = 2.0,
-		mass_distribution = "u",
-	},
-	boids = {
-		gen = "dense",
-		force_scale = 0.3,
-		force_distance = 10.0,
-		force_term = "vec3 f = dir / max(1.0, r);",
-		mass_scale = 2.0,
-		mass_distribution = "u",
-	},
-	shy = {
-		gen = "dense",
-		force_scale = 0.05,
-		force_distance = 5.0,
-		force_term = "vec3 f = dir * float(r > 2.0);",
-		mass_scale = 2.0,
-		mass_distribution = "u",
-	},
-	atoms = {
-		gen = "dense",
-		force_scale = 0.5,
-		force_distance = 15.0,
-		force_term = "vec3 f = dir * float(r < 2.0);",
-		mass_scale = 10.0,
-		mass_distribution = "u",
-	},
-	sines = {
-		gen = "dense",
-		force_scale = 0.1,
-		force_distance = 40.0,
-		force_term = "vec3 f = dir * sin(r);",
-		mass_scale = 10.0,
-		mass_distribution = "u",
-	},
-	cosines = {
-		gen = "sparse",
-		force_scale = 0.05,
-		force_distance = 25.0,
-		force_term = "vec3 f = dir * m2 * -cos(r);",
-		mass_scale = 10.0,
-		mass_distribution = "u",
-	},
-	spiral = {
-		gen = "sparse",
-		force_scale = 0.01,
-		force_distance = 5.0,
-		force_term = "vec3 f = dir * m2 + vec3(rotate(dir.xy, 0.025 * m1 * 3.14159), dir.z) * 0.5;",
-		mass_scale = 5.0,
-		mass_distribution = "u",
-	},
-	center_avoid = {
+	basic = {
 		gen = "sparse",
 		force_scale = 1.0,
 		force_distance = 1.0,
-		constant_term = "vec3 acc = -pos; acc = acc / (length(acc) * 0.1);",
-		force_term = "vec3 f = -(dir * m1 * m2 / (r * r)) * 10.0;",
+		--constant_term = "vec3 acc = -pos; acc = acc / (length(acc) * 0.1);",
+		force_term = nil,--"vec3 f = -(dir * m1 * m2 / (r * r)) * 10.0;",
 		mass_scale = 1.0,
-		mass_distribution = "u",
-	},
-	nebula = {
-		gen = "dense",
-		force_scale = 1.0,
-		force_distance = 2.0,
-		force_term = [[
-			float factor = min(mix(-m2, 1.0, r), 1.0) / max(0.1, r * r) * m1;
-			vec3 f = dir * factor;
-		]],
-		mass_scale = 30.0,
 		mass_distribution = "u",
 	},
 }
 
 --parameters of worldgen
 local gen_configs = {
-	dense = {
-		walk_scale = 3,
-		bigjump_scale = 30,
-		bigjump_chance = 0.01,
-		scatter_scale = 0.1,
-	},
 	sparse = {
 		walk_scale = 1,
 		bigjump_scale = 35,
@@ -150,7 +63,7 @@ local init_vel_scale = 1.0
 
 --proportion to fade towards black between frames
 --basically smaller = longer trails
-local basic_fade_amount = 0.1
+local basic_fade_amount = 1
 
 --amount to downres the render buffer
 local downres = 2
@@ -162,11 +75,19 @@ local particles = {
 	pos = lg.newCanvas(dim, dim, fmt_t),
 	vel = lg.newCanvas(dim, dim, fmt_t),
 	acc = lg.newCanvas(dim, dim, fmt_t),
+	Fnet = lg.newCanvas(dim, dim, fmt_t),
 }
+
+local types = {'A', 'B', 'C'}
+for _, i in ipairs(types) do
+	for _, j in ipairs(types) do
+		particles['F_' .. i .. j] = lg.newCanvas(dim, dim, fmt_t)
+	end
+end
 
 --larger points = more chunky look
 --smaller = "higher fidelity"
-lg.setPointSize(1)
+lg.setPointSize(10)
 
 --hide mouse since it's not used
 love.mouse.setVisible(false)
@@ -206,11 +127,20 @@ for k,v in pairs(sim_configs) do
 		return mix(1.0, mass_scale, ]]..v.mass_distribution..[[);
 	}
 
+	vec3 interaction(float typ, float other_typ, float r, vec3 dir, float m1, float m2) {
+		// TODO adjust based on type, switch / LUT?
+		vec3 f = -(dir * m1 * m2 / (r * r)) * 10.0;
+		return f;
+	}
+
 	]]..rotate_frag..[[
 
 	void effect() {
-		//get our position
+		//get our position & identity (type)
 		vec3 pos = Texel(MainTex, VaryingTexCoord.xy).xyz;
+		//TODO needs to cast to int.... SHORTTERM hack use a float for id
+		float typ = Texel(MainTex, VaryingTexCoord.xy).w;
+
 		float my_mass = mass(VaryingTexCoord.x);
 
 		float sample_accum = sampling_percent_offset;
@@ -227,6 +157,9 @@ for k,v in pairs(sim_configs) do
 
 					vec2 ouv = (vec2(x, y) + vec2(0.5, 0.5)) / float(dim);
 					vec3 other_pos = Texel(MainTex, ouv).xyz;
+					//TODO needs to cast to int.... SHORTTERM hack use a float for id
+					float other_typ = Texel(MainTex, ouv).w;
+
 					//define mass quantities
 					float m1 = my_mass;
 					float m2 = mass(ouv.x);
@@ -235,7 +168,9 @@ for k,v in pairs(sim_configs) do
 					float r = length(dir) / force_distance;
 					if (r > 0.0) {
 						dir = normalize(dir);
-						]]..(v.force_term or "vec3 f = dir;")..[[
+
+						//vec3 f = dir;
+						vec3 f = interaction(typ, other_typ, r, dir, m1, m2);
 						acc += (f / m1) * current_force_scale;
 					}
 				}
@@ -542,7 +477,7 @@ function love.draw()
 		lg.setShader(render_shader)
 		if render_shader:hasUniform("CamRotation") then render_shader:send("CamRotation", cx) end
 		if render_shader:hasUniform("VelocityTex") then render_shader:send("VelocityTex", particles.vel) end
-		
+
 		lg.setBlendMode("add", "alphamultiply")
 		render_mesh:setTexture(particles.pos)
 		lg.draw(render_mesh)
@@ -566,25 +501,31 @@ function love.draw()
 	end)
 
 	--debug
-	if love.keyboard.isDown("`") then
+	--if love.keyboard.isDown("`") then
 		lg.print(string.format("%s\nfps: %4d\nupdate: %02.2fms\ndraw:  %02.2fms", selected_sim.name, love.timer.getFPS(), update_time * 1e3, draw_time * 1e3), 10, 10)
 
 		lg.push()
 		lg.translate(200, 10)
+		lg.scale(3, 3)
 		for i,v in ipairs({
 			particles.pos,
 			particles.vel,
 			particles.acc,
 		}) do
-			lg.translate(0, v:getHeight())
-			lg.draw(v)
+			local label = {'pos', 'vel', 'acc'}
+
+
+			lg.translate(0, v:getHeight() + 20)
+			lg.print(label[i], 0, -15)
+			lg.draw(v, 0,0,0,3,1)
+			--love.graphics.draw(drawable, x, y, r, sx, sy, ox, oy, kx, ky)
 		end
 		lg.pop()
-	end
+	--end
 
 	--draw hints if recently pressed or on boot
-	if hint_timer < hint_time then
-		lg.setColor(1,1,1, 1.0 - (hint_timer / hint_time))
+	if true then--hint_timer < hint_time then
+		lg.setColor(1,1,1, 1)--1.0 - (hint_timer / hint_time))
 		lg.printf("enbody", 0, 10, sw, "center")
 		for i,v in ipairs {
 			{"Q / ESC", "quit"},
