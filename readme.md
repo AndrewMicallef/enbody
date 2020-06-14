@@ -161,4 +161,13 @@ of type i, j. Interactions produce forces. Forces are specific to each particle,
 and are composed of components from each interaction.
 So The force matrix has diminsions:
 `dim` number of particles * 'number of types'
-`dim`x`dim`x`N` 
+`dim`x`dim`x`N`
+
+
+Particles are currently being reworked into a `Particles` class thanks to
+batteries. The `Particles` class is a container for multiple images,
+- `dat` rgba --> mass, type, X, X
+- `pos` rgba --> x, y, z, X
+- `vel` rgba --> dx, dy, dz, X
+- `acc` rgba --> ddx, ddy, ddz, X
+(where X is unused)

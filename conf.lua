@@ -3,23 +3,23 @@ function love.conf(t)
     t.appendidentity = false            -- Search files in source directory before save directory (boolean)
     t.version = "11.3"                  -- The LÖVE version this game was made for (string)
     t.gammacorrect = false              -- Enable gamma-correct rendering, when supported by the system (boolean)
- 
+
     t.audio.mic = false                 -- Request and use microphone capabilities in Android (boolean)
     t.audio.mixwithsystem = true        -- Keep background music playing when opening LOVE (boolean, iOS and Android only)
- 
+
     t.window.title = "Enbody"           -- The window title (string)
     t.window.icon = nil                 -- Filepath to an image to use as the window's icon (string)
-    t.window.width = 0                  -- The window width (number)
-    t.window.height = 0                 -- The window height (number)
+    t.window.width = 500                  -- The window width (number)
+    t.window.height = 500                 -- The window height (number)
     t.window.borderless = false         -- Remove all border visuals from the window (boolean)
-    t.window.resizable = false          -- Let the window be user-resizable (boolean)
+    t.window.resizable = true          -- Let the window be user-resizable (boolean)
     t.window.minwidth = 1               -- Minimum window width if the window is resizable (number)
     t.window.minheight = 1              -- Minimum window height if the window is resizable (number)
-    t.window.fullscreen = true          -- Enable fullscreen (boolean)
+    t.window.fullscreen = false          -- Enable fullscreen (boolean)
     t.window.fullscreentype = "desktop" -- Choose between "desktop" fullscreen or "exclusive" fullscreen mode (string)
     t.window.usedpiscale = true         -- Enable automatic DPI scaling (boolean)
     t.window.vsync = 1                  -- Vertical sync mode (number)
- 
+
     t.modules.audio = true              -- Enable the audio module (boolean)
     t.modules.data = true               -- Enable the data module (boolean)
     t.modules.event = true              -- Enable the event module (boolean)
