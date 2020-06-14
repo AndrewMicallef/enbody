@@ -75,7 +75,7 @@ local particles = {
 	pos = lg.newCanvas(dim, dim, fmt_t),
 	vel = lg.newCanvas(dim, dim, fmt_t),
 	acc = lg.newCanvas(dim, dim, fmt_t),
-	Fnet = lg.newCanvas(dim, dim, fmt_t),
+	typ = lg.newCanvas(dim, dim, fmt_t),
 }
 
 local types = {'A', 'B', 'C'}
@@ -84,6 +84,22 @@ for _, i in ipairs(types) do
 		particles['F_' .. i .. j] = lg.newCanvas(dim, dim, fmt_t)
 	end
 end
+
+-- particle template
+local particle_template = {
+	type = 1.0,
+	--color = {1,1,1,1}
+	interaction = 'vec3 f = -(dir * m1 * m2 / (r * r)) * 10.0;'
+}
+
+local interaction_params = {
+--	A    B    C
+	{0, 1.0, 0.5},
+	{1.0, 0, 0.5},
+	{0.5, 0.5, 0}
+}
+
+
 
 --larger points = more chunky look
 --smaller = "higher fidelity"
@@ -248,38 +264,6 @@ void effect() {
 #endif
 ]])
 
---sharpen convolution to add faint outlines to particles
-local sharpen_shader = lg.newShader([[
-extern vec2 texture_size;
-extern float sharpen_amount;
-#ifdef PIXEL
-float conv[9] = float[9](
-	-1, -2, -1,
-	-2, 13, -2,
-	-1, -2, -1
-);
-vec4 effect( vec4 color, Image tex, vec2 uv, vec2 screen_coords ) {
-	vec4 pre = Texel(tex, uv);
-	vec4 c = vec4(0.0);
-	int i = 0;
-	float conv_sum = 0.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			float conv_amount = conv[i++];
-			conv_sum += conv_amount;
-			vec2 o = vec2(x, y) / texture_size;
-			vec4 px = Texel(tex, uv + o);
-			c.rgb += px.rgb * conv_amount;
-			if (x == 0 && y == 0) {
-				c.a = px.a;
-			}
-		}
-	}
-	c.rgb /= conv_sum;
-	return mix(pre, c, sharpen_amount);
-}
-#endif
-]])
 
 --generate the mesh used to render the particles
 local points = {}
@@ -486,10 +470,6 @@ function love.draw()
 		--draw render canvas as-is
 		lg.setCanvas()
 		lg.setShader()
-		--lg.setShader(sharpen_shader)
-		--sharpen_shader:send("texture_size", {render_cv:getDimensions()})
-		--sharpen_shader:send("sharpen_amount", 0.025)
-		--lg.setBlendMode("alpha", "premultiplied")
 		lg.setColor(1,1,1,1)
 		lg.draw(
 			render_cv,
@@ -497,7 +477,6 @@ function love.draw()
 			0,
 			downres, downres
 		)
-		lg.setShader()
 		lg.setBlendMode("alpha", "alphamultiply")
 	end)
 

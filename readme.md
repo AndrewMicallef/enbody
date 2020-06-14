@@ -154,3 +154,11 @@ above I am going to have a new shader for each interaction image.
 The interaction term is going to be specified by the rgb parameters of the
 interaction image. For the time being I will begin with the interaction schema
 described above.
+
+
+Interaction schema is an NxNx3 matrix of the interaction parameters between particles
+of type i, j. Interactions produce forces. Forces are specific to each particle,
+and are composed of components from each interaction.
+So The force matrix has diminsions:
+`dim` number of particles * 'number of types'
+`dim`x`dim`x`N` 
