@@ -13,7 +13,7 @@ local steps_per_render = 1
 --percentage of particles that exert force per-update
 local sampling_percent = 1.0
 --visual zoom
-local zoom = 10
+local zoom = 1
 --cam position
 local cx, cy = 0, 0
 
@@ -485,10 +485,11 @@ function love.draw()
 
 		--draw render canvas as-is
 		lg.setCanvas()
-		lg.setShader(sharpen_shader)
-		sharpen_shader:send("texture_size", {render_cv:getDimensions()})
-		sharpen_shader:send("sharpen_amount", 0.025)
-		lg.setBlendMode("alpha", "premultiplied")
+		lg.setShader()
+		--lg.setShader(sharpen_shader)
+		--sharpen_shader:send("texture_size", {render_cv:getDimensions()})
+		--sharpen_shader:send("sharpen_amount", 0.025)
+		--lg.setBlendMode("alpha", "premultiplied")
 		lg.setColor(1,1,1,1)
 		lg.draw(
 			render_cv,
