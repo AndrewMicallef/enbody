@@ -1,9 +1,25 @@
 1. Reduces simulation to single type of universe
 
+# Tasks
+
+- [ ] Make an interaction schema generator  
+    **Specifications:**
+    - `N x N x 3` matrix, where `N` is number of particle types
+    - `interaction[i][j]` defines the three components of the interaction between
+       particle of type `i` and particles of type `j`.
+
+    - In the first instance the parameters will describe:
+        1. the decay rate of the force with respect to distance
+        2. scale of the force (+ve for attraction, -ve for repulsive)
+        3. free parameter for a later decision
+
+
 
 # Notes
 
 -----
+
+**2020 - 06 - 13**
 
 Max would suggest to have a new image for each type of particle and to calculate
 all like interactions simultaneously.
@@ -22,8 +38,10 @@ So in this schema like particles have an interaction parameter of 0, which would
 cause them to repel each other. An interaction parameter of 1 would imply an
 attractive force. An interaction parameter of 0.5 would imply no force, or a
 neutral interaction.
-
-Thus: `A` *repels* `A` -- `A` *ignores* `B` -- `A` *attracts* `C`
+Thus:  
+- `A` *repels* `A`
+- `A` *ignores* `B`
+- `A` *attracts* `C`  
 In the above schema the interaction matrix is symmetrical, but this need not be
 so. In fact asymmetry in the interaction terms would produce behaviour that is
 likely to be more interesting.
@@ -106,3 +124,33 @@ for _, i in ipairs(types) do                                        --  <<<
 end                                                                 --  <<<
 
 ```
+
+--------------------------------------------------------------------------------
+
+**2020 - 06 - 14**
+
+So my interaction shader was going to be built around a function like this:
+
+```C
+vec3 interaction(float typ, float other_typ, float r, vec3 dir, float m1, float m2) {
+    // TODO adjust based on type, switch / LUT?
+    vec3 f = -(dir * m1 * m2 / (r * r)) * 10.0;
+    return f;
+}
+
+
+//iterate all particles
+for (int y = 0; y < dim; y++) {
+    for (int x = 0; x < dim; x++) {
+        vec3 f = interaction(...);
+    }
+}
+```
+
+I think I need to know the type of this particle and the type of every other
+particle that I am comparing it to. However by splitting the forces up as I have
+above I am going to have a new shader for each interaction image.
+
+The interaction term is going to be specified by the rgb parameters of the
+interaction image. For the time being I will begin with the interaction schema
+described above.
