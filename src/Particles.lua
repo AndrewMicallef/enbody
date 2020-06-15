@@ -67,6 +67,10 @@ function Particles:new(args)
         vel = lg.newCanvas(dim, dim, fmt_t),
         acc = lg.newCanvas(dim, dim, fmt_t),
 
+        schema = {},
+
+        shaders = {},
+
         render_mesh = lg.newMesh(points, "points", "static"),
         render_cv = lg.newCanvas(rw, rh, {format="rgba16f"}),
 
@@ -81,8 +85,14 @@ function Particles:new(args)
         draw_time = 0,
     })
 
+    -- generate the interaction schema
+    self:init_schema()
+    -- generate shaders for each interaction type
+    self:genInteractionShaders()
+
     -- take the particle positions on a random walk and give them random types
-    self:spawn_particles(gen, dim, fmt_t.format)
+    self:init_particles()
+
 
     return self
 end
@@ -101,6 +111,8 @@ function Particles:update(dt)
             --render next state
             lg.setShader(accel_shader)
             accel_shader:send("DataTex", self.dat)
+            -- Each accel shader is specific to a pair of particle types
+            -- perhaps I should feed in a pair of binary masks on the MainTex?
 
             lg.setBlendMode("replace", "premultiplied")
             lg.setColor(1,1,1,1)
@@ -169,21 +181,17 @@ function Particles:render()
 end
 
 --setup initial buffer state
-function Particles:spawn_particles(gen, dim, fmt)
+function Particles:init_particles()
+    local gen = self.gen
+    local dim = self.dim
+    local fmt = fmt_t.format
+
     local _gen = gen_params['base']
     local this_gen = gen_params[gen]
 	local walk_scale = this_gen.walk_scale or _gen.walk_scale
 	local bigjump_scale = this_gen.bigjump_scale or _gen.bigjump_scale
 	local bigjump_chance = this_gen.bigjump_chance or _gen.bigjump_chance
 	local scatter_scale = this_gen.scatter_scale or _gen.scatter_scale
-
-	local function copy_img_to_canvas(img, canvas)
-		lg.setCanvas(canvas)
-		lg.setBlendMode("replace", "premultiplied")
-		lg.draw(img)
-		lg.setBlendMode("alpha", "alphamultiply")
-		lg.setCanvas()
-	end
 
 	--spawn particles with random walk
 	local pos_img = love.image.newImageData(dim, dim, fmt)
@@ -220,10 +228,7 @@ function Particles:spawn_particles(gen, dim, fmt)
         local mass = 1.0
         local type = love.math.random(0, self.types) / self.types
 
-		r = mass
-		g = type
-		b = 1.0
-		a = 1
+		r,g,b,a = mass, type, 1.0, 1.0
 
 		return r, g, b, a
 	end)
@@ -250,6 +255,24 @@ function Particles:spawn_particles(gen, dim, fmt)
 
 	--reset canvas
 	lg.setCanvas()
+end
+
+-- initialise the interaction schema with ntypes*ntypes of interactions
+function Particles:init_schema()
+    local ntypes = self.ntypes
+
+    for i=1, ntypes do
+        for j=1, ntypes do
+            if j == 1 then self.schema[i] = {} end
+
+            local type = {love.math.random(-1, 1),   -- repel, neutral, attract
+                          love.math.random(1,25),    -- magnitude
+                          love.math.random(1,6) / 3  -- distance factor
+                         }
+
+            self.schema[i][j] = type
+        end
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -314,67 +337,70 @@ void effect() {
 #endif
 ]])
 
--- TODO
-interaction_shaders = {}
-for k,v in pairs(sim_configs) do
-	local accel_shader = lg.newShader([[
-	uniform Image MainTex;
-	const float timescale = ]]..timescale..[[;
-	const float force_scale = ]]..v.force_scale..[[;
-	const float force_distance = ]]..v.force_distance..[[;
-	uniform float dt;
+-- Utilities
 
-	uniform float sampling_percent;
-	uniform float sampling_percent_offset;
-	const int dim = ]]..dim..[[;
-	#ifdef PIXEL
-	const float mass_scale = ]]..v.mass_scale..[[;
-	float mass(float u) {
-		return mix(1.0, mass_scale, ]]..v.mass_distribution..[[);
-	}
+--- loop through interaction types and make a shader for each
+function Particles:genInteractionShaders()
+    local ntypes = self.ntypes
 
-	]]..rotate_frag..[[
+    local _params = {
+        dim = self.dim,
+        ntypes = ntypes,
+        rotate_frag = rotate_frag
+    }
 
-	void effect() {
-		//get our position
-		vec3 pos = Texel(MainTex, VaryingTexCoord.xy).xyz;
-		float my_mass = mass(VaryingTexCoord.x);
+    local shaders = {}
+    for i=1, ntypes do
+        for j=1, ntypes do
+            if j == 1 then shaders[i] = {} end
 
-		float sample_accum = sampling_percent_offset;
+                local kA, kB, kC, _ = self.schema[i][j]
+                print('interaction params:' .. kA ..', '.. kB .. ', '.. kC)
+                --shallow copy _params
+                local vars = {
+                    typei = i, typej = j,
+                    kA = kA, kB = kB, kC = kC,
+                }
+                for k,v in pairs(_params) do vars[k] = v end
 
-		float current_force_scale = force_scale / sampling_percent;
-		]]..(v.constant_term or "vec3 acc = vec3(0.0);")..[[
+                shaders[i][j] = genInteractionShader(vars)
+        end
+    end
 
-		//iterate all particles
-		for (int y = 0; y < dim; y++) {
-			for (int x = 0; x < dim; x++) {
-				sample_accum = sample_accum + sampling_percent;
-				if (sample_accum >= 1.0) {
-					sample_accum -= 1.0;
+    self.shaders = shaders
 
-					vec2 ouv = (vec2(x, y) + vec2(0.5, 0.5)) / float(dim);
-					vec3 other_pos = Texel(MainTex, ouv).xyz;
-					//define mass quantities
-					float m1 = my_mass;
-					float m2 = mass(ouv.x);
-					//get normalised direction and distance
-					vec3 dir = other_pos - pos;
-					float r = length(dir) / force_distance;
-					if (r > 0.0) {
-						dir = normalize(dir);
-						]]..(v.force_term or "vec3 f = dir;")..[[
-						acc += (f / m1) * current_force_scale;
-					}
-				}
-			}
-		}
-		love_PixelColor = vec4(acc, 1.0);
-	}
-	#endif
-	]])
-	table.insert(interaction_shaders, {
-		name = k,
-		accel_shader = accel_shader,
-		gen = v.gen,
-	})
+end
+
+
+
+local function genInteractionShader(vars)
+    assert(vars.dim, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <dim> paramater")
+    assert(vars.ntypes, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                     .. "missing <ntypes> paramater")
+    assert(vars.typei, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <typei> paramater")
+    assert(vars.typej, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <typej> paramater")
+    assert(vars.kA, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <kA> paramater")
+    assert(vars.kB, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <kB> paramater")
+    assert(vars.kC, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <kC> paramater")
+    assert(vars.rotate_frag, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
+                    .. "missing <rotate_frag> paramater")
+
+    local template = love.filesystem.read('src/shaders/interaction_template.glsl')
+    local shadercode = string.gsub(template, "{{(%w+)}}", vars)
+
+    return love.graphics.newShader(shadercode)
+end
+
+local function copy_img_to_canvas(img, canvas)
+    lg.setCanvas(canvas)
+    lg.setBlendMode("replace", "premultiplied")
+    lg.draw(img)
+    lg.setBlendMode("alpha", "alphamultiply")
+    lg.setCanvas()
 end
