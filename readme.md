@@ -171,3 +171,20 @@ batteries. The `Particles` class is a container for multiple images,
 - `vel` rgba --> dx, dy, dz, X
 - `acc` rgba --> ddx, ddy, ddz, X
 (where X is unused)
+
+
+
+---
+
+**2020 - 06 - 16**
+
+Max comments + Moonfly
+
+> @AndrewMicallef you can avoid all the separate textures by clearing and then adding your forces per-particle into a single acceleration texture, then adding that to the velocity and velocity to the position as normal
+
+> i'd recommend your interaction matrix be normalised -1, 0, 1 rather than have 0.5 normalised but i guess it's a matter of semantics
+
+> By extension, half of the floating-point numbers are in the interval [-1,1]
+
+> i recommend having an image for each type of particle btw, not each separate particle, but i think you get this already
+
