@@ -94,6 +94,10 @@ function Particles:new(args)
     self:init_particles()
 
 
+    local template = love.filesystem.read('src/shaders/render_template.glsl')
+    local shadercode = string.gsub(template, "{{(%w+)}}", {dim=dim, rotate_frag=rotate_frag})
+    self.render_shader = lg.newShader(shadercode)
+
     return self
 end
 
@@ -138,6 +142,7 @@ function Particles:update(dt)
 end
 
 function Particles:render()
+    local render_shader = self.render_shader
     local draw_time = self.draw_time
 
     draw_time = update_timer(draw_time, 0.99, function()
@@ -157,7 +162,7 @@ function Particles:render()
         lg.translate(0, -cy)
         lg.setShader(render_shader)
         if render_shader:hasUniform("CamRotation") then render_shader:send("CamRotation", cx) end
-        if render_shader:hasUniform("VelocityTex") then render_shader:send("VelocityTex", self.vel) end
+        if render_shader:hasUniform("DataTex") then render_shader:send("DataTex", self.dat) end
 
         lg.setBlendMode("add", "alphamultiply")
         self.render_mesh:setTexture(self.pos)
@@ -276,68 +281,6 @@ function Particles:init_schema()
 end
 
 --------------------------------------------------------------------------------
-Particles.render_shader = lg.newShader([[
-uniform Image MainTex;
-uniform Image VelocityTex;
-uniform float CamRotation;
-const int dim = ]]..dim..[[;
-
-]]..rotate_frag..[[
-
-#ifdef VERTEX
-vec4 position(mat4 transform_projection, vec4 vertex_position)
-{
-	vec2 uv = vertex_position.xy;
-	vec3 pos = Texel(MainTex, uv).xyz;
-	vec3 vel = Texel(VelocityTex, uv).xyz;
-
-	//rotate with camera
-	pos.xz = rotate(pos.xz, CamRotation);
-
-	//perspective
-	float near = -500.0;
-	float far = 500.0;
-	float depth = (pos.z - near) / (far - near);
-	if (depth < 0.0) {
-		//clip
-		return vec4(0.0 / 0.0);
-	} else {
-		vertex_position.xy = pos.xy / mix(0.25, 2.0, depth);
-	}
-
-	//derive colour
-	float it = length(vel) * 0.1;
-	float clamped_it = clamp(it, 0.0, 1.0);
-
-	float i = (uv.x + uv.y * float(dim)) / float(dim);
-	i += length(pos) * 0.001;
-	i *= 3.14159 * 2.0;
-
-	VaryingColor.rgb = mix(
-		vec3(
-			(cos(i + 0.0) + 1.0) / 2.0,
-			(cos(i + 2.0) + 1.0) / 2.0,
-			(cos(i + 4.0) + 1.0) / 2.0
-		) * clamped_it,
-		vec3(1.0),
-		sqrt(it) * 0.01
-	);
-	VaryingColor.a = (it * 0.1) * (1.0 - depth);
-
-	//debug
-	//VaryingColor = vec4(1.0);
-
-	return transform_projection * vertex_position;
-}
-#endif
-#ifdef PIXEL
-void effect() {
-	love_PixelColor = VaryingColor;
-}
-#endif
-]])
-
--- Utilities
 
 --- loop through interaction types and make a shader for each
 function Particles:genInteractionShaders()

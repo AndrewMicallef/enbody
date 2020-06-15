@@ -36,7 +36,7 @@ const int dim = {{dim}};
 
 // function to get the integer type from the data vector
 int getType(vec3 dat) {
-    return floor(dat.x * {{ntypes}});
+    return floor(dat.y * {{ntypes}});
 }
 
 //
