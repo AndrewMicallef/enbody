@@ -36,22 +36,29 @@ const int dim = {{dim}};
 
 // function to get the integer type from the data vector
 int getType(vec3 dat) {
-    return floor(dat.y * {{ntypes}});
+    return int(floor(dat.y * {{ntypes}}));
 }
 
 //
-float getInteraction(int t1, int t2, float m1, float m2, vec3 dir, float r) {
+vec3 getInteraction(int t1, int t2, float m1, float m2, vec3 dir, float r) {
     if (t1 == {{typei}} && t2 == {{typej}}) {
         return {{kA}} * dir * (m1 * m2 * {{kB}}) / (r * r * {{kC}});
     }
     else {
-        return 0.0;
+        return vec3(0.0);
     }
 }
 
 #ifdef PIXEL
 
-{{rotate_frag}}
+vec2 rotate(vec2 v, float t) {
+	float s = sin(t);
+	float c = cos(t);
+	return vec2(
+		c * v.x - s * v.y,
+		s * v.x + c * v.y
+	);
+}
 
 void effect() {
     //get our position
@@ -59,6 +66,9 @@ void effect() {
     vec3 dat = Texel(DataTex, VaryingTexCoord.xy).xyz;
     float m1 = dat.x;
     int t1 = getType(dat);
+
+    // read off acc directly?
+    vec3 acc = vec3(0.0);
 
     //iterate all particles
     for (int y = 0; y < dim; y++) {
@@ -77,11 +87,19 @@ void effect() {
 
             if (r > 0.0) {
                 dir = normalize(dir);
-                float f = getInteraction(t1, t2, m1, m2, dir, r);
+                vec3 f = getInteraction(t1, t2, m1, m2, dir, r);
                 acc += (f / m1);
             }
         }
     }
     love_PixelColor = vec4(acc, 1.0);
+}
+
+#endif
+
+#ifdef VERTEX
+vec4 position(mat4 transform_projection, vec4 vertex_position)
+{
+	return transform_projection * vertex_position;
 }
 #endif

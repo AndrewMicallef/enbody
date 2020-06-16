@@ -4,6 +4,8 @@ lg = love.graphics
 
 lg.setDefaultFilter("nearest", "nearest")
 
+require 'src.Particles'
+
 
 --------------------------------------------------------------------------------
 
@@ -141,20 +143,18 @@ local gen_configs = {
 
 --------------------------------------------------------------------------------
 
-local rotate_frag = [[
-vec2 rotate(vec2 v, float t) {
-	float s = sin(t);
-	float c = cos(t);
-	return vec2(
-		c * v.x - s * v.y,
-		s * v.x + c * v.y
-	);
-}
-]]
+-- takes a file containing template tokens of the form {{var}}
+-- and fills the tokens from the subs table given {var =  val} is in subs
+function from_template(template_file, subs)
+	for k, v in pairs(subs) do print(k ..': '.. v) end
 
+	local template = love.filesystem.read(template_file)
+	local filled = string.gsub(template, "{{(%w+)}}", subs)
+	return filled
+end
 
 -- timing function used in Particles update and draw
-local function update_timer(current_timer, lerp_amount, f)
+function update_timer(current_timer, lerp_amount, f)
 	local time_start = love.timer.getTime()
 	f()
 	local time_end = love.timer.getTime()

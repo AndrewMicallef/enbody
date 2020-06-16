@@ -22,11 +22,18 @@ uniform Image DataTex;
 uniform float CamRotation;
 const int dim = {{dim}};
 
-{{rotate_frag}}
+vec2 rotate(vec2 v, float t) {
+	float s = sin(t);
+	float c = cos(t);
+	return vec2(
+		c * v.x - s * v.y,
+		s * v.x + c * v.y
+	);
+}
 
 // function to get the integer type from the data vector
 int getType(vec3 dat) {
-    return floor(dat.y * {{ntypes}});
+    return int(floor(dat.y * {{ntypes}}));
 }
 
 #ifdef VERTEX
@@ -65,6 +72,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
 	return transform_projection * vertex_position;
 }
 #endif
+
 #ifdef PIXEL
 void effect() {
 	love_PixelColor = VaryingColor;

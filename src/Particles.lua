@@ -71,14 +71,20 @@ function Particles:new(args)
 
         shaders = {},
 
+        -- render variables
         render_mesh = lg.newMesh(points, "points", "static"),
         render_cv = lg.newCanvas(rw, rh, {format="rgba16f"}),
+        rw = rw, rh = rh, rs = rs,
+        downres = downres,
+        basic_fade_amount = basic_fade_amount,
+
+        -- camera settings TODO abstract away
+        cx = 0, cy = 0, zoom = 1,
 
         dim = dim,
         ntypes = ntypes,
         gen = gen,
-        downres = downres,
-        basic_fade_amount = basic_fade_amount,
+
 
         --some debug timing stuff
         update_time = 0,
@@ -93,9 +99,9 @@ function Particles:new(args)
     -- take the particle positions on a random walk and give them random types
     self:init_particles()
 
-    local template = love.filesystem.read('src/shaders/render_template.glsl')
-    local shadercode = string.gsub(template, "{{(%w+)}}", {dim=dim, rotate_frag=rotate_frag})
-    self.render_shader = lg.newShader(shadercode)
+    self.render_shader = lg.newShader(from_template('src/shaders/render_template.glsl',
+                                                    {dim=dim, rotate_frag=rotate_frag})
+                                    )
 
     return self
 end
@@ -167,6 +173,10 @@ end
 function Particles:render()
     local render_shader = self.render_shader
     local draw_time = self.draw_time
+    local rw, rh = self.rw, self.rh
+    local zoom = self.zoom
+    local render_shader = self.render_shader
+    local cx, cy = self.cx, self.cy
 
     draw_time = update_timer(draw_time, 0.99, function()
         --fade render canvas one step
@@ -301,6 +311,7 @@ function Particles:init_schema()
             self.schema[i][j] = type
         end
     end
+
 end
 
 --------------------------------------------------------------------------------
@@ -318,10 +329,8 @@ function Particles:genInteractionShaders()
     local shaders = {}
     for i=1, ntypes do
         for j=1, ntypes do
-            if j == 1 then shaders[i] = {} end
 
-                local kA, kB, kC, _ = self.schema[i][j]
-                print('interaction params:' .. kA ..', '.. kB .. ', '.. kC)
+                local kA, kB, kC = unpack(self.schema[i][j])
                 --shallow copy _params
                 local vars = {
                     typei = i, typej = j,
@@ -329,38 +338,15 @@ function Particles:genInteractionShaders()
                 }
                 for k,v in pairs(_params) do vars[k] = v end
 
-                shaders[i][j] = genInteractionShader(vars)
+                shaders[i][j] = love.graphics.newShader(
+                                    from_template('src/shaders/interaction_template.glsl', vars)
+                                )
+                print('shader generated')
         end
     end
 
     self.shaders = shaders
 
-end
-
-
--- TODO generalise into a template reader function
-local function genInteractionShader(vars)
-    assert(vars.dim, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <dim> paramater")
-    assert(vars.ntypes, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                     .. "missing <ntypes> paramater")
-    assert(vars.typei, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <typei> paramater")
-    assert(vars.typej, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <typej> paramater")
-    assert(vars.kA, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <kA> paramater")
-    assert(vars.kB, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <kB> paramater")
-    assert(vars.kC, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <kC> paramater")
-    assert(vars.rotate_frag, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
-                    .. "missing <rotate_frag> paramater")
-
-    local template = love.filesystem.read('src/shaders/interaction_template.glsl')
-    local shadercode = string.gsub(template, "{{(%w+)}}", vars)
-
-    return love.graphics.newShader(shadercode)
 end
 
 local function copy_img_to_canvas(img, canvas)
