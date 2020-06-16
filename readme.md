@@ -178,13 +178,22 @@ batteries. The `Particles` class is a container for multiple images,
 
 **2020 - 06 - 16**
 
-Max comments + Moonfly
+from discord this morning
 
-> @AndrewMicallef you can avoid all the separate textures by clearing and then adding your forces per-particle into a single acceleration texture, then adding that to the velocity and velocity to the position as normal
+`Max` comments
 
-> i'd recommend your interaction matrix be normalised -1, 0, 1 rather than have 0.5 normalised but i guess it's a matter of semantics
+> @AndrewMicallef you can avoid all the separate textures by clearing and then
+> adding your forces per-particle into a single acceleration texture, then
+> adding that to the velocity and velocity to the position as normal
 
+> i'd recommend your interaction matrix be normalised -1, 0, 1 rather than have
+> 0.5 normalised but i guess it's a matter of semantics
+
+`Moonfly` adds:
 > By extension, half of the floating-point numbers are in the interval [-1,1]
 
-> i recommend having an image for each type of particle btw, not each separate particle, but i think you get this already
+`Max` continues
+> i recommend having an image for each type of particle btw, not each separate
+> particle, but i think you get this already
 
+* looking at update then render cycles in turn

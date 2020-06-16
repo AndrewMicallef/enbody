@@ -93,7 +93,6 @@ function Particles:new(args)
     -- take the particle positions on a random walk and give them random types
     self:init_particles()
 
-
     local template = love.filesystem.read('src/shaders/render_template.glsl')
     local shadercode = string.gsub(template, "{{(%w+)}}", {dim=dim, rotate_frag=rotate_frag})
     self.render_shader = lg.newShader(shadercode)
@@ -102,6 +101,17 @@ function Particles:new(args)
 end
 
 function Particles:update(dt)
+    --[[ EACH UPDATE CYCLE:
+        0. start a timer
+        1. clear particles.acc
+        2. iterate through all interactions:
+            drawing self.pos with the current interaction shader
+            each pass (after the first) adding to self.acc through `alphamultiply`
+        3. update velocity from acceleration
+        4. update position from velocity
+        5. clear the graphics settings
+    --]]
+
     --put an upper cap on dt so we don't get any absurd jumps
     dt = math.min(dt, 1 / 60)
     --measure the update time we care about
@@ -110,32 +120,45 @@ function Particles:update(dt)
 
         --accel_shader:send("sampling_percent", sampling_percent)
 
-        for i, accel_shader in ipairs(interaction_shaders) do
+        -- clear the particles.acc image
+        lg.setCanvas(self.acc)
+        lg.setColor(1,1,1,1)
+        lg.discard()
+
+        for i, curr_shader in ipairs(interaction_shaders) do
 
             --render next state
-            lg.setShader(accel_shader)
-            accel_shader:send("DataTex", self.dat)
+            lg.setShader(curr_shader)
+            curr_shader:send("DataTex", self.dat)
+            curr_shader:send("dt", dt)
             -- Each accel shader is specific to a pair of particle types
             -- perhaps I should feed in a pair of binary masks on the MainTex?
 
-            lg.setBlendMode("replace", "premultiplied")
+            -- on the first pass use replace- premultiplied
+            -- cumulate acc on all subsequent passes
+            if i == 1 then
+                lg.setBlendMode("replace", "premultiplied")
+            else
+                lg.setBlendMode("add", "alphamultiply")
+            end
             lg.setColor(1,1,1,1)
-            lg.setCanvas(particles.acc)
-            lg.draw(particles.pos)
-
-            --
-            lg.setShader()
-            lg.setBlendMode("add", "alphamultiply")
-            lg.setColor(1,1,1,actual_dt)
-            --integrate vel
-            lg.setCanvas(particles.vel)
-            lg.draw(particles.acc)
-            --integrate pos
-            lg.setCanvas(particles.pos)
-            lg.draw(particles.vel)
+            lg.draw(self.pos)
         end
+
+        lg.setShader()
+        lg.setBlendMode("add", "alphamultiply")
         lg.setColor(1,1,1,1)
-    end)
+        --integrate vel
+        lg.setCanvas(self.vel)
+        lg.draw(self.acc)
+        --integrate pos
+        lg.setCanvas(self.pos)
+        lg.draw(self.vel)
+        lg.setColor(1,1,1,1)
+
+
+        end)
+
     lg.setCanvas()
     lg.setBlendMode("alpha", "alphamultiply")
     lg.setShader()
@@ -315,7 +338,7 @@ function Particles:genInteractionShaders()
 end
 
 
-
+-- TODO generalise into a template reader function
 local function genInteractionShader(vars)
     assert(vars.dim, "usage: genInteractionShader{dim, ntypes, typei, typej, kA, kB, kC, rotate_frag}\n"
                     .. "missing <dim> paramater")
