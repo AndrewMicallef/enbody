@@ -39,16 +39,6 @@ int getType(vec3 dat) {
     return int(floor(dat.y * {{ntypes}}));
 }
 
-//
-vec3 getInteraction(int t1, int t2, float m1, float m2, vec3 dir, float r) {
-    if (t1 == {{typei}} && t2 == {{typej}}) {
-        return {{kA}} * dir * (m1 * m2 * {{kB}}) / (r * r * {{kC}});
-    }
-    else {
-        return vec3(0.0);
-    }
-}
-
 #ifdef PIXEL
 
 vec2 rotate(vec2 v, float t) {
@@ -69,6 +59,8 @@ void effect() {
 
     // read off acc directly?
     vec3 acc = vec3(0.0);
+    vec3 f;
+
 
     //iterate all particles
     for (int y = 0; y < dim; y++) {
@@ -85,9 +77,9 @@ void effect() {
             vec3 dir = other_pos - pos;
             float r = length(dir);
 
-            if (r > 0.0) {
+            if (t1 == {{typei}} && t2 == {{typej}} && r > 0.0 )  {
                 dir = normalize(dir);
-                vec3 f = vec3(0.0);//getInteraction(t1, t2, m1, m2, dir, r);
+                f = {{kA}} * dir * (m1 * m2 * {{kB}}) / (r * r * {{kC}});
                 acc += (f / m1);
             }
         }

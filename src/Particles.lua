@@ -1,8 +1,10 @@
 Particles = class()
 
+lg.setPointSize(5)
+
 local args_defaults = {
     --dimension of the particles textures
-    dim = 64,
+    dim = 164,
 
     --number of discrete particle types
     ntypes = 5,
@@ -11,26 +13,32 @@ local args_defaults = {
     gen = 'base',
 
     --amount to downres the render buffer
-    downres = 2,
+    downres = 1,
 
     --proportion to fade towards black between frames
     --basically smaller = longer trails
-    basic_fade_amount = 0.1,
+    basic_fade_amount = 1,
 }
 
 -- random walk params for initialisation
 local gen_params = {
     base = {
-        walk_scale = 3,
-        bigjump_scale = 3,
-        bigjump_chance = 0,
+        walk_scale = 4,
+        bigjump_scale = 13,
+        bigjump_chance = 0.01,
         scatter_scale = 0.2,
     },
     dense = {
         bigjump_scale = 30,
         bigjump_chance = 0.01,
         scatter_scale = 0.1,
-    }
+    },
+    sparse = {
+        walk_scale = 1,
+        bigjump_scale = 35,
+        bigjump_chance = 0.02,
+        scatter_scale = 3,
+    },
 }
 
 local fmt_t = {format="rgba32f"}
@@ -88,7 +96,7 @@ function Particles:new(args)
         basic_fade_amount = basic_fade_amount,
 
         -- camera settings TODO abstract away
-        cx = 0, cy = 0, zoom = 1,
+        cx = 0, cy = 0, zoom = 10,
 
         dim = dim,
         ntypes = ntypes,
@@ -131,6 +139,7 @@ function Particles:update(dt)
     dt = math.min(dt, 1 / 60)
     --measure the update time we care about
     local update_time = self.update_time
+
     update_time = update_timer(update_time, 0.99, function()
 
         --accel_shader:send("sampling_percent", sampling_percent)
@@ -175,10 +184,36 @@ function Particles:update(dt)
 
 
         end)
-
     lg.setCanvas()
     lg.setBlendMode("alpha", "alphamultiply")
     lg.setShader()
+    lg.draw(self.pos)
+
+    --pan
+	local pan_amount = (50 / self.zoom) * dt
+	if love.keyboard.isDown("up") then
+		self.cy = self.cy - pan_amount
+	end
+	if love.keyboard.isDown("down") then
+		self.cy = self.cy + pan_amount
+	end
+	--rotate
+	local rotate_amount = math.pi * 0.5 * dt
+	if love.keyboard.isDown("left") then
+		self.cx = self.cx - rotate_amount
+	end
+	if love.keyboard.isDown("right") then
+		self.cx = self.cx + rotate_amount
+	end
+
+	--zoom
+	if love.keyboard.isDown("i") then
+		self.zoom = self.zoom * 1.01
+	end
+	if love.keyboard.isDown("o") then
+		self.zoom = self.zoom / 1.01
+	end
+
 end
 
 function Particles:render()
@@ -188,6 +223,7 @@ function Particles:render()
     local zoom = self.zoom
     local render_shader = self.render_shader
     local cx, cy = self.cx, self.cy
+
 
     draw_time = update_timer(draw_time, 0.99, function()
         --fade render canvas one step
@@ -209,7 +245,7 @@ function Particles:render()
         if render_shader:hasUniform("DataTex") then render_shader:send("DataTex", self.dat) end
 
         lg.setBlendMode("add", "alphamultiply")
-        self.render_mesh:setTexture(self.pos)
+        --self.render_mesh:setTexture(self.pos)
         lg.draw(self.render_mesh)
         lg.pop()
 
@@ -224,9 +260,20 @@ function Particles:render()
             0,
             self.downres, self.downres
         )
-        lg.setShader()
-        lg.setBlendMode("alpha", "alphamultiply")
     end)
+
+    --lg.draw(self.pos)
+    -- draw debug data
+    lg.setShader()
+    lg.setBlendMode("alpha", "alphamultiply")
+    local label = {'data', 'pos', 'vel', 'acc'}
+    lg.setFont(lg.newFont(14))
+    for i, tex in pairs({self.dat, self.pos, self.vel, self.acc}) do
+        local w, h = tex:getDimensions( )
+        lg.draw(tex, i*w)
+
+        lg.print(label[i], i*w, h+10)
+    end
 end
 
 --setup initial buffer state
