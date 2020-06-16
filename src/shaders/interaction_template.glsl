@@ -30,7 +30,7 @@ rotate_frag -- (shader code) fragment of shader code to affect rotation
 
 uniform Image MainTex;    // The position image
 uniform Image DataTex;    // The Data image [mass, type, X, X]
-uniform float dt;
+//uniform float dt;
 
 const int dim = {{dim}};
 
@@ -87,7 +87,7 @@ void effect() {
 
             if (r > 0.0) {
                 dir = normalize(dir);
-                vec3 f = getInteraction(t1, t2, m1, m2, dir, r);
+                vec3 f = vec3(0.0);//getInteraction(t1, t2, m1, m2, dir, r);
                 acc += (f / m1);
             }
         }

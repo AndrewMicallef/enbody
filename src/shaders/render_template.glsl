@@ -13,6 +13,7 @@ The following replacements are required to be made in this template:
 
 dim -- (integer) dimension of the position and data image
 rotate_frag -- (shader code) fragment of shader code to affect rotation
+ntypes -- (integer) the number of particle types in this universe
 
 */
 
@@ -64,7 +65,7 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
 
 	VaryingColor.rg = dat.rg;
     VaryingColor.b = sin(dat.g * 3.14159265359);
-	VaryingColor.a = (it * 0.1) * (1.0 - depth);
+	VaryingColor.a = (1.0 - depth);
 
 	//debug
 	//VaryingColor = vec4(1.0);

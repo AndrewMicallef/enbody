@@ -146,8 +146,6 @@ local gen_configs = {
 -- takes a file containing template tokens of the form {{var}}
 -- and fills the tokens from the subs table given {var =  val} is in subs
 function from_template(template_file, subs)
-	for k, v in pairs(subs) do print(k ..': '.. v) end
-
 	local template = love.filesystem.read(template_file)
 	local filled = string.gsub(template, "{{(%w+)}}", subs)
 	return filled

@@ -5,7 +5,7 @@ local args_defaults = {
     dim = 64,
 
     --number of discrete particle types
-    ntypes = 2,
+    ntypes = 5,
 
     -- type of spawn distribution
     gen = 'base',
@@ -34,6 +34,15 @@ local gen_params = {
 }
 
 local fmt_t = {format="rgba32f"}
+
+local function copy_img_to_canvas(img, canvas)
+    lg.setCanvas(canvas)
+    lg.setBlendMode("replace", "premultiplied")
+    lg.draw(img)
+    lg.setBlendMode("alpha", "alphamultiply")
+    lg.setCanvas()
+end
+
 
 function Particles:new(args)
     --local x = args.x or args_defaults.x
@@ -100,7 +109,7 @@ function Particles:new(args)
     self:init_particles()
 
     self.render_shader = lg.newShader(from_template('src/shaders/render_template.glsl',
-                                                    {dim=dim, rotate_frag=rotate_frag})
+                                                    {dim=dim, rotate_frag=rotate_frag, ntypes=ntypes})
                                     )
 
     return self
@@ -131,24 +140,26 @@ function Particles:update(dt)
         lg.setColor(1,1,1,1)
         lg.discard()
 
-        for i, curr_shader in ipairs(interaction_shaders) do
+        for i, _table in ipairs(self.shaders) do
+            for j, curr_shader in ipairs(_table) do
 
-            --render next state
-            lg.setShader(curr_shader)
-            curr_shader:send("DataTex", self.dat)
-            curr_shader:send("dt", dt)
-            -- Each accel shader is specific to a pair of particle types
-            -- perhaps I should feed in a pair of binary masks on the MainTex?
+                --render next state
+                lg.setShader(curr_shader)
+                curr_shader:send("DataTex", self.dat)
+                -- Each accel shader is specific to a pair of particle types
+                -- perhaps I should feed in a pair of binary masks on the MainTex?
 
-            -- on the first pass use replace- premultiplied
-            -- cumulate acc on all subsequent passes
-            if i == 1 then
-                lg.setBlendMode("replace", "premultiplied")
-            else
-                lg.setBlendMode("add", "alphamultiply")
+                -- on the first pass use replace- premultiplied
+                -- cumulate acc on all subsequent passes
+                if i == 1 then
+                    lg.setBlendMode("replace", "premultiplied")
+                else
+                    lg.setBlendMode("add", "alphamultiply")
+                end
+
+                lg.setColor(1,1,1,1)
+                lg.draw(self.pos)
             end
-            lg.setColor(1,1,1,1)
-            lg.draw(self.pos)
         end
 
         lg.setShader()
@@ -264,7 +275,7 @@ function Particles:init_particles()
     -- map mass and type data to the dat img
     dat_img:mapPixel(function(x, y, r, g, b, a)
         local mass = 1.0
-        local type = love.math.random(0, self.types) / self.types
+        local type = love.math.random(0, self.ntypes) / self.ntypes
 
 		r,g,b,a = mass, type, 1.0, 1.0
 
@@ -329,30 +340,22 @@ function Particles:genInteractionShaders()
     local shaders = {}
     for i=1, ntypes do
         for j=1, ntypes do
+            if j==1 then shaders[i] = {} end
 
-                local kA, kB, kC = unpack(self.schema[i][j])
-                --shallow copy _params
-                local vars = {
-                    typei = i, typej = j,
-                    kA = kA, kB = kB, kC = kC,
-                }
-                for k,v in pairs(_params) do vars[k] = v end
+            local kA, kB, kC = unpack(self.schema[i][j])
+            --shallow copy _params
+            local vars = {
+                typei = i, typej = j,
+                kA = kA, kB = kB, kC = kC,
+            }
+            for k,v in pairs(_params) do vars[k] = v end
 
-                shaders[i][j] = love.graphics.newShader(
-                                    from_template('src/shaders/interaction_template.glsl', vars)
-                                )
-                print('shader generated')
+            local sc = from_template('src/shaders/interaction_template.glsl', vars)
+            shaders[i][j] = love.graphics.newShader(sc)
         end
     end
+    print('shaders generated')
 
     self.shaders = shaders
 
-end
-
-local function copy_img_to_canvas(img, canvas)
-    lg.setCanvas(canvas)
-    lg.setBlendMode("replace", "premultiplied")
-    lg.draw(img)
-    lg.setBlendMode("alpha", "alphamultiply")
-    lg.setCanvas()
 end
