@@ -50,17 +50,22 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
 	pos.xz = rotate(pos.xz, CamRotation);
 
 	//perspective
-	float near = -500.0;
-	float far = 500.0;
-	float depth = (pos.z - near) / (far - near);
-	vertex_position.xy = pos.xy / mix(0.25, 2.0, depth);
+		float near = -500.0;
+		float far = 500.0;
+		float depth = (pos.z - near) / (far - near);
+		if (depth < 0.0) {
+			//clip
+			return vec4(0.0 / 0.0);
+		} else {
+			vertex_position.xy = pos.xy / mix(0.25, 2.0, depth);
+		}
 
 
 	// derive colour from type and mass
     // alpha is a function of depth
 
 	VaryingColor.rgb = vec3(cos(dat.g), sin(dat.g), dat.g);
-	VaryingColor.a = 1.0;//(1.0 - depth);
+	VaryingColor.a = (1.0 - depth);
 
 	//debug
 	//VaryingColor = vec4(1.0);

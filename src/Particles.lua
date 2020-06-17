@@ -1,10 +1,10 @@
 Particles = class()
 
-lg.setPointSize(5)
+lg.setPointSize(2)
 
 local args_defaults = {
     --dimension of the particles textures
-    dim = 164,
+    dim = 64,
 
     --number of discrete particle types
     ntypes = 5,
@@ -96,7 +96,7 @@ function Particles:new(args)
         basic_fade_amount = basic_fade_amount,
 
         -- camera settings TODO abstract away
-        cx = 0, cy = 0, zoom = 10,
+        cx = 0, cy = 0, zoom = 0.01,
 
         dim = dim,
         ntypes = ntypes,
