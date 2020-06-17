@@ -1,6 +1,8 @@
 Particles = class()
 
-lg.setPointSize(2)
+lg.setPointSize(5)
+
+friction_scale = .02
 
 local args_defaults = {
     --dimension of the particles textures
@@ -10,7 +12,7 @@ local args_defaults = {
     ntypes = 5,
 
     -- type of spawn distribution
-    gen = 'base',
+    gen = 'sparse',
 
     --amount to downres the render buffer
     downres = 1,
@@ -34,10 +36,10 @@ local gen_params = {
         scatter_scale = 0.1,
     },
     sparse = {
-        walk_scale = 1,
+        walk_scale = 50,
         bigjump_scale = 35,
         bigjump_chance = 0.02,
-        scatter_scale = 3,
+        scatter_scale = 15,
     },
 }
 
@@ -120,6 +122,11 @@ function Particles:new(args)
                                                     {dim=dim, rotate_frag=rotate_frag, ntypes=ntypes})
                                     )
 
+    self.friction_shader = lg.newShader(from_template('src/shaders/friction_template.glsl',
+                                                    {dim=dim})
+                                    )
+
+
     return self
 end
 
@@ -166,10 +173,16 @@ function Particles:update(dt)
                     lg.setBlendMode("add", "alphamultiply")
                 end
 
-                lg.setColor(1,1,1,1)
                 lg.draw(self.pos)
             end
         end
+
+        -- add friction to the mix
+        lg.setShader(self.friction_shader)
+        self.friction_shader:send("DataTex", self.dat)
+        lg.setBlendMode("add", "alphamultiply")
+        lg.draw(self.vel)
+
 
         lg.setShader()
         lg.setBlendMode("add", "alphamultiply")
@@ -320,11 +333,19 @@ function Particles:init_particles()
 	end)
 
     -- map mass and type data to the dat img
+    local _cf = {}
     dat_img:mapPixel(function(x, y, r, g, b, a)
         local mass = 1.0
         local type = love.math.random(0, self.ntypes) / self.ntypes
+        local cf
+        if _cf[type] then
+            cf = _cf[type]
+        else
+            cf = math.abs(love.math.randomNormal(friction_scale, 0)) / 100
+            _cf[type] = cf
+        end
 
-		r,g,b,a = mass, type, 1.0, 1.0
+		r,g,b,a = mass, type, cf, 1.0
 
 		return r, g, b, a
 	end)
