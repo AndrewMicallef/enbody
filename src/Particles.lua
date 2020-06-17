@@ -66,7 +66,7 @@ function Particles:new(args)
     for y = 1, dim do
         for x = 1, dim do
             table.insert(points, {
-                x, y, -- position
+                --x, y, -- position
                 -- texturecoords uv
                 (x - 0.5) / dim, (y -0.5) / dim
             })
@@ -245,7 +245,7 @@ function Particles:render()
         if render_shader:hasUniform("DataTex") then render_shader:send("DataTex", self.dat) end
 
         lg.setBlendMode("add", "alphamultiply")
-        --self.render_mesh:setTexture(self.pos)
+        self.render_mesh:setTexture(self.pos)
         lg.draw(self.render_mesh)
         lg.pop()
 
