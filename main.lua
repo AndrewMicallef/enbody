@@ -2,7 +2,7 @@ require 'src.dependancies'
 
 function love.load()
 
-	particles = Particles{ntypes=6}
+	particles = Particles{ntypes=5, dim=64}
 end
 
 function love.update(dt)
