@@ -1,8 +1,6 @@
-1. Reduces simulation to single type of universe
-
 # Tasks
 
-- [ ] Make an interaction schema generator  
+- [X] Make an interaction schema generator  
     **Specifications:**
     - `N x N x 3` matrix, where `N` is number of particle types
     - `interaction[i][j]` defines the three components of the interaction between
@@ -12,6 +10,12 @@
         1. the decay rate of the force with respect to distance
         2. scale of the force (+ve for attraction, -ve for repulsive)
         3. free parameter for a later decision
+
+- [ ] redirect one of the interaction parameters to a friction like coefficient
+- [ ] add fps counter
+- [ ] upgrade camera controls: add pan / trackball rotation
+- [ ] put depth / perspective back into the render
+
 
 
 
@@ -197,3 +201,19 @@ from discord this morning
 > particle, but i think you get this already
 
 * looking at update then render cycles in turn
+
+--------------------------------------------------------------------------------
+
+**2020 - 06 - 17**
+
+I don't understand how the renderer works, but at this point I think I can move
+on, because it works. I fixed it by removing the UV coordinates I had added to
+the points which comprise `render_mesh`.
+
+
+So the first run appears to have all particles fling out in a massive
+decompression. One big bang. That's cool and all, but I want to
+1. Limit the amount of space for them to expand into, either have them walled in
+   or create a circular universe.
+2. Add a frictional force that slows the rate of expansion. It is not clear if
+   there are any attractive forces in the first run, we should fix that.
