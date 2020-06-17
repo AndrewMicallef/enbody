@@ -11,7 +11,7 @@
         2. scale of the force (+ve for attraction, -ve for repulsive)
         3. free parameter for a later decision
 
-- [ ] redirect one of the interaction parameters to a friction like coefficient
+- [X] redirect one of the interaction parameters to a friction like coefficient
 - [ ] add fps counter
 - [ ] upgrade camera controls: add pan / trackball rotation
 - [ ] put depth / perspective back into the render
