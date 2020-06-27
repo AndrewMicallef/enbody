@@ -9,13 +9,12 @@ send data required:
 
 DataTex -- Particles.dat image
 
-friction is proportional to - v^2
+friction is proportional to - v^3
 
 this template uses the dual curley braces pattern {{X}} for replacements.
 The following replacements are required to be made in this template:
 
 dim -- (integer) dimension of the position and data image
-ntypes -- (integer) the number of particle types in this universe
 
 */
 
@@ -37,10 +36,10 @@ void effect() {
 
     vec3 f;
     vec3 acc;
-    vec3 dir = normalize(vel);
-    float v = length(vel);
 
-    acc = -(vel * vel * vel * drag_coefficient);
+    f = clamp((drag_coefficient/(vel*vel) ), 0, 2);
+
+    acc -= f / mass;
 
     love_PixelColor = vec4(acc, 1.0);
 }

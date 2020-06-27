@@ -1,5 +1,6 @@
 /*
-INTERACTION SHADER TEMPLATE
+
+ELECTROSTATIC FORCE SHADER TEMPLATE
 
 This shader expects to be drawn on a position image.
 
@@ -14,17 +15,6 @@ this template uses the dual curley braces pattern {{X}} for replacements.
 The following replacements are required to be made in this template:
 
 dim -- (integer) dimension of the position and data image
-ntypes -- (integer) the number of particle types in this universe
-
-typei -- (integer) the particle type of the affected particle
-typej -- (integer) the particle type of the effector particle
-
-kA -- (integer) These three paramaters affect the direction,
-kB -- (integer) magnitude,
-kC -- (integer) and distance falloff of the interaction force
-
-
-rotate_frag -- (shader code) fragment of shader code to affect rotation
 
 */
 
@@ -34,28 +24,14 @@ uniform Image DataTex;    // The Data image [mass, type, X, X]
 
 const int dim = {{dim}};
 
-// function to get the integer type from the data vector
-int getType(vec3 dat) {
-    return int(floor(dat.y * {{ntypes}}));
-}
-
 #ifdef PIXEL
-
-vec2 rotate(vec2 v, float t) {
-	float s = sin(t);
-	float c = cos(t);
-	return vec2(
-		c * v.x - s * v.y,
-		s * v.x + c * v.y
-	);
-}
 
 void effect() {
     //get our position
     vec3 pos = Texel(MainTex, VaryingTexCoord.xy).xyz;
     vec3 dat = Texel(DataTex, VaryingTexCoord.xy).xyz;
     float m1 = dat.x;
-    float t1 = dat.y;
+	int c1 = int(floor(dat.y));
 
     // read off acc directly?
     vec3 acc = vec3(0.0);
@@ -71,22 +47,17 @@ void effect() {
             vec3 other_dat = Texel(DataTex, other_uv).xyz;
 
             //define mass quantities
-            float m2 = other_dat.x;
-            float t2 = other_dat.y;
+			int c2 = int(floor(dat.y));
             //get normalised direction and distance
             vec3 dir = other_pos - pos;
             float r = length(dir);
 
-            // this isn't doing what I expected it to do
-            // follow max's suggestion for seperate particle types on seperate
-            // images
-            if (t1 == {{typei}} && t2 == {{typej}} && r > 1.0 )  {
+            if (r > 100.0 )  {
                 dir = normalize(dir);
-                f = {{kA}} * dir * (m1 * m2 * {{kB}}) / (r * r * {{kC}});
+				// https://en.wikipedia.org/wiki/Electric_field
+                f = dir * (c1 * c2) / r;
+				f = clamp(f, -1e1, 1e1);
                 acc += (f / m1);
-            }
-            else {
-                //acc = vec3 (0.0);
             }
         }
     }

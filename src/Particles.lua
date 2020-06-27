@@ -119,10 +119,10 @@ function Particles:new(args)
     self:init_particles()
 
     self.render_shader = lg.newShader(from_template('src/shaders/render_template.glsl',
-                                                    {dim=dim, rotate_frag=rotate_frag, ntypes=ntypes})
+                                                    {dim=dim})
                                     )
 
-    self.friction_shader = lg.newShader(from_template('src/shaders/friction_template.glsl',
+    self.friction_shader = lg.newShader(from_template('src/shaders//friction_template.glsl',
                                                     {dim=dim})
                                     )
 
@@ -156,25 +156,24 @@ function Particles:update(dt)
         lg.setColor(1,1,1,1)
         lg.discard()
 
-        for i, _table in ipairs(self.shaders) do
-            for j, curr_shader in ipairs(_table) do
+        for i, curr_shader in ipairs(self.shaders) do
 
-                --render next state
-                lg.setShader(curr_shader)
-                curr_shader:send("DataTex", self.dat)
-                -- Each accel shader is specific to a pair of particle types
-                -- perhaps I should feed in a pair of binary masks on the MainTex?
+            --render next state
+            lg.setShader(curr_shader)
+            curr_shader:send("DataTex", self.dat)
+            -- Each accel shader is specific to a pair of particle types
+            -- perhaps I should feed in a pair of binary masks on the MainTex?
 
-                -- on the first pass use replace- premultiplied
-                -- cumulate acc on all subsequent passes
-                if i == 1 then
-                    lg.setBlendMode("replace", "premultiplied")
-                else
-                    lg.setBlendMode("add", "alphamultiply")
-                end
-
-                lg.draw(self.pos)
+            -- on the first pass use replace- premultiplied
+            -- cumulate acc on all subsequent passes
+            if i == 1 then
+                lg.setBlendMode("replace", "premultiplied")
+            else
+                lg.setBlendMode("add", "alphamultiply")
             end
+
+            lg.draw(self.pos)
+
         end
 
         -- add friction to the mix
@@ -201,7 +200,6 @@ function Particles:update(dt)
     lg.setBlendMode("alpha", "alphamultiply")
     lg.setShader()
     lg.draw(self.pos)
-
 end
 
 function Particles:render()
@@ -225,6 +223,7 @@ function Particles:render()
         --draw current state into render canvas
         lg.push()
 
+        -- set coords to centre of render mesh
         lg.translate(rw * 0.5, rh * 0.5)
         lg.scale(zoom, zoom)
         lg.translate(0, -cy)
@@ -311,16 +310,18 @@ function Particles:init_particles()
     local _cf = {}
     dat_img:mapPixel(function(x, y, r, g, b, a)
         local mass = 1.0
-        local type = love.math.random(0, self.ntypes) / self.ntypes
+        local charge = love.math.random(0,1) == 0 and 1 or -1
+        charge = love.math.random(1,3) * charge
+
         local cf
-        if _cf[type] then
-            cf = _cf[type]
+        if _cf[charge] then
+            cf = _cf[charge]
         else
             cf = math.abs(love.math.randomNormal(friction_scale, 0)) / 100
-            _cf[type] = cf
+            _cf[charge] = cf
         end
 
-		r,g,b,a = mass, type, cf, 1.0
+		r,g,b,a = mass, charge, cf, 1.0
 
 		return r, g, b, a
 	end)
@@ -357,9 +358,9 @@ function Particles:init_schema()
         for j=1, ntypes do
             if j == 1 then self.schema[i] = {} end
 
-            local type = {love.math.random(-1, 1),   -- repel, neutral, attract
-                          love.math.random(1,25),    -- magnitude
-                          love.math.random(1,6) / 3  -- distance factor
+            local type = {love.math.random(0, 1) == 1 and -1 or 1,   -- repel, neutral, attract
+                          .05,    -- magnitude
+                          .01  -- distance factor
                          }
 
             self.schema[i][j] = type
@@ -372,31 +373,25 @@ end
 
 --- loop through interaction types and make a shader for each
 function Particles:genInteractionShaders()
+    print('shaders:')
+
     local ntypes = self.ntypes
 
-    local _params = {
+    local params = {
         dim = self.dim,
-        ntypes = ntypes,
-        rotate_frag = rotate_frag
     }
 
     local shaders = {}
-    for i=1, ntypes do
-        for j=1, ntypes do
-            if j==1 then shaders[i] = {} end
 
-            local kA, kB, kC = unpack(self.schema[i][j])
-            --shallow copy _params
-            local vars = {
-                typei = i, typej = j,
-                kA = kA, kB = kB, kC = kC,
-            }
-            for k,v in pairs(_params) do vars[k] = v end
+    local ls_shd = love.filesystem.getDirectoryItems('src/shaders/interactions')
 
-            local sc = from_template('src/shaders/interaction_template.glsl', vars)
-            shaders[i][j] = love.graphics.newShader(sc)
-        end
+    for _, fname in ipairs(ls_shd) do
+
+        local sc = from_template('src/shaders/interactions/' .. fname, params)
+        shaders[#shaders + 1] = love.graphics.newShader(sc)
+        print('\t' .. fname)
     end
+
     print('shaders generated')
 
     self.shaders = shaders

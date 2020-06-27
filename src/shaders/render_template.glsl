@@ -33,9 +33,6 @@ vec2 rotate(vec2 v, float t) {
 }
 
 // function to get the integer type from the data vector
-int getType(vec3 dat) {
-    return int(floor(dat.y * {{ntypes}}));
-}
 
 #ifdef VERTEX
 vec4 position(mat4 transform_projection, vec4 vertex_position)
@@ -43,7 +40,6 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
 	vec2 uv = vertex_position.xy;
 	vec3 pos = Texel(MainTex, uv).xyz;
 	vec3 dat = Texel(DataTex, uv).xyz;
-    int type = getType(dat);
     float mass = dat.x;
 
 	//rotate with camera
@@ -60,11 +56,12 @@ vec4 position(mat4 transform_projection, vec4 vertex_position)
 			vertex_position.xy = pos.xy / mix(0.25, 2.0, depth);
 		}
 
-
+	VaryingColor.r = dat.r;
+	VaryingColor.g = abs(dat.g)/3;
+	VaryingColor.b = (dat.g + 3) / 6;
 	// derive colour from type and mass
     // alpha is a function of depth
-
-	VaryingColor.rgb = vec3(cos(dat.g), sin(dat.g), 1 - dat.g);
+	//VaryingColor.rgb = vec3(cos(dat.g), sin(dat.g), 1 - dat.g);
 	VaryingColor.a = (1.0 - depth);
 
 	//debug
