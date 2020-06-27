@@ -202,31 +202,6 @@ function Particles:update(dt)
     lg.setShader()
     lg.draw(self.pos)
 
-    --pan
-	local pan_amount = (50 / self.zoom) * dt
-	if love.keyboard.isDown("up") then
-		self.cy = self.cy - pan_amount
-	end
-	if love.keyboard.isDown("down") then
-		self.cy = self.cy + pan_amount
-	end
-	--rotate
-	local rotate_amount = math.pi * 0.5 * dt
-	if love.keyboard.isDown("left") then
-		self.cx = self.cx - rotate_amount
-	end
-	if love.keyboard.isDown("right") then
-		self.cx = self.cx + rotate_amount
-	end
-
-	--zoom
-	if love.keyboard.isDown("i") then
-		self.zoom = self.zoom * 1.01
-	end
-	if love.keyboard.isDown("o") then
-		self.zoom = self.zoom / 1.01
-	end
-
 end
 
 function Particles:render()

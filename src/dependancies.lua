@@ -4,6 +4,7 @@ lg = love.graphics
 
 lg.setDefaultFilter("nearest", "nearest")
 
+cpml = require 'lib.cpml'
 require 'src.Particles'
 
 
