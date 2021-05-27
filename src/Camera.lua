@@ -3,41 +3,46 @@ Camera = class()
 function Camera:new()
 
     self = self:init{
+        -- rotation angles and rates of change
         pitch = 0,
         yaw = 0,
         roll = 0,
+
+        pitch_rate = 0.05,
+        yaw_rate = 0.05,
+        roll_rate = 0.05,
+
+        -- location
         loc = cpml.vec3(0,0,0),
         fov = 0,
-
     }
     return self
 end
 
 function Camera:update(dt)
     -- TODO replace with quat rotation
-    --pan
-    local pan_amount = (50 / self.zoom) * dt
-    if love.keyboard.isDown("up") then
-        self.cy = self.cy - pan_amount
+
+    -- pitch [w,s]
+    if love.keyboard.isDown("w") then
+        self.pitch = self.pitch - self.pitch_rate * dt
     end
-    if love.keyboard.isDown("down") then
-        self.cy = self.cy + pan_amount
+    if love.keyboard.isDown("s") then
+        self.pitch = self.pitch + self.pitch_rate * dt
     end
-    --rotate
-    local rotate_amount = math.pi * 0.5 * dt
-    if love.keyboard.isDown("left") then
-        self.cx = self.cx - rotate_amount
+    --yaw [a,d]
+    if love.keyboard.isDown("a") then
+        self.yaw = self.yaw - self.yaw_rate * dt
     end
-    if love.keyboard.isDown("right") then
-        self.cx = self.cx + rotate_amount
+    if love.keyboard.isDown("d") then
+        self.yaw = self.yaw + self.yaw_rate * dt
     end
 
-    --zoom
-    if love.keyboard.isDown("i") then
-        self.zoom = self.zoom * 1.01
+    --roll [q,e]
+    if love.keyboard.isDown("q") then
+        self.roll = self.roll - self.roll_rate * dt
     end
-    if love.keyboard.isDown("o") then
-        self.zoom = self.zoom / 1.01
+    if love.keyboard.isDown("e") then
+        self.roll = self.roll + self.roll_rate * dt
     end
 end
 
