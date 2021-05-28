@@ -217,3 +217,93 @@ decompression. One big bang. That's cool and all, but I want to
    or create a circular universe.
 2. Add a frictional force that slows the rate of expansion. It is not clear if
    there are any attractive forces in the first run, we should fix that.
+
+
+
+````````````````
+What I want to do is run a simple simulation in a shader. The simulation is based on the physarium movement and a rough implementation of the model described [here](https://sagejenson.com/physarum).
+
+In my implementation I am starting with two images, the first contains data about agents (heading, posx, posy, ...) The second image is a world texture which the agents interact with...
+@Max I'm actually writting this based on enbody
+Max
+ —
+Today at 9:30 AM
+float as general bit patterns is only a good idea within their integer range; you can do https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/floatBitsToInt.xhtml but it needs glsl3 and afaik might get weird with nans
+yeah i remember you being interested in enbody a while ago :slight_smile:
+AndrewMicallef
+ —
+Today at 9:30 AM
+yeah thanks to lockdown 4 I have time for this agin :stuck_out_tongue:
+Max
+ —
+Today at 9:30 AM
+you in melbourne too :upside_down:
+AndrewMicallef
+ —
+Today at 9:30 AM
+so I have a lot of boolean data that I want to pack into the world texture
+like: "is this a wall, is this grass, is this water, ...blah blah"
+too much for a single image, but if i can interpret the indivitual bits of a single channel I easily have the room for everything i want to encode
+ya melbourne
+Max
+ —  —
+Today at 9:33 AM
+Why not use a byte format for the texture
+Max
+ —
+Today at 9:33 AM
+@AndrewMicallef you definitely can use the bits of an individual channel; if you use one of the fixed point texture formats there's no issues other than knowing if you're storing linear or srgb data
+(ie r8 rg8 rgba8 or r16 rg16)
+
+AndrewMicallef
+ —
+Today at 9:33 AM
+How do i find the 'integer range' of a float?
+Max
+ —
+Today at 9:34 AM
+er what i meant to say was more "dont use float for bit patterns if you can help it"
+AndrewMicallef
+ —
+Today at 9:34 AM
+Ok, when i was reading the love wiki it seamed like all images were floats,
+Max
+ —
+Today at 9:34 AM
+use one of the formats above and then multiply it out from the 0-1 range to the 0-255 or 0-65535 range
+well
+AndrewMicallef
+ —
+Today at 9:34 AM
+so can I transfer integers with say r8?
+Max
+ —
+Today at 9:34 AM
+in glsl you will "get" the result as a float from 0-1
+but you can multiply it safely to 0-255 and then mask out bits
+AndrewMicallef
+ —
+Today at 9:35 AM
+ok
+Max
+ —
+Today at 9:35 AM
+because the full range therein will be stored in the r8 texture
+(as boring old bytes)
+AndrewMicallef
+ —
+Today at 9:35 AM
+I just want boring bytes
+:stuck_out_tongue:
+Max
+ —
+Today at 9:35 AM
+it's just automagically turned into an 0-1 range when sampling from the texture because it's assumed you wanted to store image data in there
+and love doesn't have integer texture formats, so doing the multiply is as good as you're going to get
+AndrewMicallef
+ —
+Today at 9:36 AM
+Aright this should be what I need. Well it seams like either I will get this done this week, or you won't hear from me till next lockdown :stuck_out_tongue:
+thanks @Max
+
+````````
