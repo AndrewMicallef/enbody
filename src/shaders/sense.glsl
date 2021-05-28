@@ -66,9 +66,10 @@ void effect() {
     // texelFetch gets me the value at a pixel exact
     // texel takes a float argument and blends the result.
     // for sensors I want the blended result.
-    for i in {-0.5, 0, 0.5}
-    vec4 _ = texel(FloorTex, thisblock + offset)
-
+    for (int t = 0; t <= 2; t++) {
+        offset = (t-0.5)
+        vec4 _ = texel(FloorTex, thisblock + offset)
+    }
     //2. compute new position and heading based on previous data...
     // output new data
     love_PixelColor = vec4(pos.x, pos.y, heading, agent.w);
