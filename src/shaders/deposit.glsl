@@ -1,8 +1,7 @@
+#pragma language glsl3
 /*
 
 */
-uniform float uTime;             // Time in seconds (for use in seeding the random function)
-uniform Image OrganismTex; // Image Data of the macro organism [self, outbound, inbound]
 uniform Image AgentTex;    // The Agent data [locx, locy, heading, X]
 uniform Image FloorTex;    // The Data 8bit image [trial, X,X]
 //uniform float dt;
@@ -10,16 +9,11 @@ uniform Image FloorTex;    // The Data 8bit image [trial, X,X]
 const float TAU = 6.28318530717958647692528; // 2*Pi
 const float PHI = 1.61803398874989484820459; // Φ = Golden Ratio [gould random function]
 
-const int ww = textureSize(FloorTex).x;
-const int hh = textureSize(FloorTex).y;
-const float w_float = float ww;
-const float h_float = float hh;
-const float onepx = 1 / min(ww, hh);
-
-const float pTurningAngle = TAU * 0.25;
-const float pSenseRadius =  onepx;
-const float pSenseAngle = TAU * 0.15;
-const float pMoveSpeed = onepx;
+int ww = textureSize(FloorTex, 0).x;
+int hh = textureSize(FloorTex, 0).y;
+float w_float = float(ww);
+float h_float = float(hh);
+float onepx = 1 / min(w_float, h_float);
 
 const float pDepositVal = 1/20;
 
@@ -30,6 +24,8 @@ void effect() {
     //Extract Agent and Floor data from texture for this data block
     vec2 xy = VaryingTexCoord.xy;
     float dTrail = 0;
+
+    vec4 floor = Texel(FloorTex, xy);
 
     // deposit
     for (int i = 0; i < ww; i++){
@@ -44,11 +40,9 @@ void effect() {
             }
         }
     }
+    floor.x += dTrail;
 
-    // defuse
-    // decay
-
-    love_PixelColor = vec4(pos.x, pos.y, heading, agent.w);
+    love_PixelColor = floor;
 }
 
 
