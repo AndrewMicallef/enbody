@@ -22,7 +22,7 @@ void effect() {
         }
     }
 
-    trail_sum /= 9;
+    trail_sum /= 9.0;
     floor.x = trail_sum;
 
     love_PixelColor = floor;

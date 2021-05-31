@@ -81,6 +81,7 @@ void effect() {
     //2. compute new position and heading based on previous data...
     vec2 dloc = pMoveSpeed/dt * vec2(cos(heading), sin(heading));
     pos += dloc;
+    pos = vec2(mod(pos.x,ww), mod(pos.y,hh));
 
     // output new data
     love_PixelColor = vec4(pos.x, pos.y, heading, agent.w);

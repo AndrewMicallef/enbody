@@ -1,8 +1,11 @@
- require 'src.dependancies'
+lg = love.graphics
+
+--lg.setDefaultFilter("nearest", "nearest")
+lg.setPointSize(5)
 
 size = 800 -- size of the world block (true N is this value squared)
 ox, oy = math.floor(size/2), math.floor(size/2)
-onepx = 1/size
+onepx = 1/size -- size of one pixel
 oneTU =  0.25
 
 
@@ -23,72 +26,56 @@ function duplicateCanvas(canvas)
     return newCanvas
 end
 
---[[
-## LOGIC
-	1. Sense
-	2. Rotate
-	3. Move
-	4. Deposit
-	5. Diffuse
-	6. Decay
---]]
-
--- initiate textures
-AgentTex = lg.newCanvas(size, size, {format='rgba32f'})
-OrganismTex = lg.newCanvas(size, size, {format='rgba32f'})
-FloorTex = lg.newCanvas(size, size, {format='rgba32f'})
-
 -- load shaders
 shader_sense = lg.newShader(love.filesystem.read('src/shaders/sense.glsl'))
 shader_deposit = lg.newShader(love.filesystem.read('src/shaders/deposit.glsl'))
 shader_difuse = lg.newShader(love.filesystem.read('src/shaders/difuse.glsl'))
 shader_decay = lg.newShader(love.filesystem.read('src/shaders/decay.glsl'))
 
---spawn agents
-AgentImg = love.image.newImageData(size, size, 'rgba32f')
-OrganismImg = love.image.newImageData(size, size, 'rgba32f')
-FloorImg = love.image.newImageData(size, size, 'rgba32f')
 
 Buffer = lg.newCanvas(size, size, {format='rgba32f'})
 Buffer:renderTo(function() lg.clear(0,0,0,1) end)
 
+-- initiate textures
+AgentTex = lg.newCanvas(size, size, {format='rgba32f'})
+AgentImg = love.image.newImageData(size, size, 'rgba32f')
 AgentBuf = duplicateCanvas(AgentTex)
-FloorBuf = duplicateCanvas(FloorTex)
 
+--spawn agents in a circle
 AgentImg:mapPixel(
 	function(x,y,r,g,b,a)
 		local i = y*size + x
 		local angle = 2*math.pi * i/(size*size)
-		local radius = onepx
+		local radius = size*.2
 		local heading = (love.math.random() * math.pi*2)%oneTU
 
 		r = radius * math.cos(angle)
 		g = radius * math.sin(angle)
 		b = heading
-		return r,g,b,1
-	end
-)
-
--- place
-OrganismImg:mapPixel(
-	function(x,y,r,g,b,a)
-		if (x == ox) and (y == oy) then
-			return 1,0,0,0
-		else
-			return 0,0,0,0
-		end
-	end
-)
-
-FloorImg:mapPixel(
-	function(x,y,r,g,b,a)
-		return 0,0,0,0
+		return r+size/2,g+size/2,b,1
 	end
 )
 
 copy_img_to_canvas(AgentImg, AgentTex)
-copy_img_to_canvas(OrganismImg, OrganismTex)
-copy_img_to_canvas(FloorImg, FloorTex)
+
+FloorTex = lg.newCanvas(size, size, {format='rgba32f'})
+FloorImg = love.image.newImageData(size, size, 'rgba32f')
+FloorBuf = duplicateCanvas(FloorTex)
+
+--construct vertex table
+points = {}
+for u = 1, size do
+    for v = 1, size do
+        table.insert(points, {
+            (u) / size,
+            (v) / size,
+        })
+    end
+end
+
+FloorMesh = lg.newMesh(points, "points", "static")
+
+
 
 
 function love.load()
@@ -115,42 +102,53 @@ function love.update(dt)
         lg.setBlendMode("replace", "premultiplied")
         lg.draw(Buffer)
     end)
-    AgentBuf:renderTo(function()
-        lg.setBlendMode("replace", "premultiplied")
-        lg.draw(AgentTex)
-    end)
 
+	-- deposit
+	FloorTex:renderTo(function()
+		lg.push(all)
+		--lg.clear(0,0,0,1)
+		lg.setColor(1,1,1,1)
+		lg.setBlendMode("add", "premultiplied")
+		lg.setShader(shader_deposit)
+		shader_deposit:send("AgentTex", AgentTex)
+		lg.draw(FloorMesh)
+		lg.pop(all)
+	end)
 
-    -- deposit
-    Buffer:renderTo(function()
-        lg.clear(0,0,0,0)
-        lg.setBlendMode("add", "premultiplied")
-        lg.setShader(shader_deposit)
-            shader_deposit:send("AgentTex", AgentTex)
-            shader_deposit:send("FloorTex", FloorTex)
-            lg.draw(FloorBuf)
-        lg.setShader()
-    end)
-    FloorTex:renderTo(function()
+	-- diffuse
+	Buffer:renderTo(function()
+		lg.push(all)
+		lg.clear(0,0,0,0) -- clear the buffer to begin
+		lg.setColor(1,1,1,1)
+		lg.setBlendMode("replace", "premultiplied")
+		lg.setShader(shader_difuse)
+		shader_difuse:send("FloorTex", FloorTex)
+		lg.draw(FloorTex)
+		lg.pop(all)
+	end)
+	FloorTex:renderTo(function()
+		lg.clear(0,0,0,0) -- clear the buffer to begin
+		lg.setColor(1,1,1,1)
+		lg.setBlendMode("replace", "premultiplied")
+		lg.draw(Buffer)
+	end)
+
+	-- decay
+	Buffer:renderTo(function()
+        lg.push(all)
+		lg.clear(0,0,0,0) -- clear the buffer to begin
+		lg.setColor(1,1,1,1)
         lg.setBlendMode("replace", "premultiplied")
-        lg.draw(Buffer)
-    end)
-    FloorBuf:renderTo(function()
-        lg.setBlendMode("replace", "premultiplied")
+        lg.setShader(shader_decay)
+        shader_decay:send("FloorTex", FloorTex)
+		shader_decay:send("dt", dt)
         lg.draw(FloorTex)
+        lg.pop(all)
     end)
-
-
-
-	-- set shader: deposit
-	-- set canvas: FloorTex
-	-- draw()
-	-- set shader: diffuse
-	-- set canvas: FloorTex
-	-- draw()
-	-- set shader: decay
-	-- set canvas: FloorTex
-	-- draw()
+	FloorTex:renderTo(function()
+		lg.setBlendMode("replace", "premultiplied")
+		lg.draw(Buffer)
+	end)
 
 	-- render FloorTex to screen...
 
@@ -160,18 +158,18 @@ function love.draw()
 
 	local sw, sh = lg.getDimensions()
 
-    lg.setColor(1,1,1, 1.0)
-    lg.setBlendMode("none", "alphamultiply")
+    lg.setColor(1,1,1,1)
+	lg.clear(0,0,0,1)
+    lg.setBlendMode("none", "premultiplied")
+    lg.setCanvas()
     lg.setShader()
     lg.draw(FloorTex)
-
-
 
 	-- draw Information
     lg.setShader()
 	lg.setColor(1,1,1, 1.0)
 	lg.setBlendMode("alpha", "alphamultiply")
-	lg.printf("ENBODY:\nPhysarum", 0, 10, sw, "center")
+	lg.printf("PHSYARUM", 0, 10, sw, "center")
 	for i,v in ipairs {
 		{"Q / ESC", "quit"},
 		{"R", "reset"},
@@ -182,13 +180,11 @@ function love.draw()
 		lg.printf("-", sw * 0.5 - 10, y, 20, "center")
 	end
 	lg.setColor(1,1,1,1)
-
 end
 
 
 --respond to input
 function love.keypressed(k)
-	--new world
 	if k == "r" then
 		--restart, soft or hard
 		if love.keyboard.isDown("lctrl") then
